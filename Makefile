@@ -6,12 +6,12 @@ default: all
 
 all: main
 
-main: main.c
-	$(CC) -o diskinfo main.c
-	$(CC) -o disklist disklist.c
+main: diskinfo.c
+	$(CC) -o diskinfo diskinfo.c diskmethods.c
+	$(CC) -o disklist disklist.c diskmethods.c
 
 debug:
-	$(CC) -g -o diskinfo main.c
+	$(CC) -g -o diskinfo diskinfo.c
 
 clean:
 	$(RM) diskinfo
