@@ -98,31 +98,27 @@ int main(int argc, char* argv[])
     // boot sector
     os_name = malloc(sizeof(char) * 8);
     if(os_name == NULL) printf("error - malloc failed\n");
-
     disk_label = malloc(sizeof(char) * 11);
     if(disk_label == NULL) printf("error - malloc failed\n");
-
     // TODO - remove unused ones
     strncpy(os_name, (p + 3), 8);
     strncpy(disk_label, (p + 43), 11);
     memcpy(&bytes_per_sector, (p + 11), 2);
-    memcpy(&sectors_per_cluster, (p + 13), 1);
     memcpy(&reserved_clusters, (p + 14), 2);
     memcpy(&fat_count, (p + 16), 1);
-    memcpy(&max_root_entries, (p + 17), 2);
     memcpy(&total_sector_count, (p + 19), 2);
-    memcpy(&sectors_per_fat, (p + 19), 2);
-    memcpy(&num_heads, (p + 26), 2);
+    memcpy(&sectors_per_fat, (p + 22), 2);
 
     printf("OS Name: %s\n", os_name);
-    printf("Label of the disk: %s\n", disk_label);
-
+    // TODO - get from root directory
+    printf("Label of the disk: %s\n", "");
     printf("Total size of the disk: %d bytes\n", total_sector_count * bytes_per_sector);
     printf("Free size of the disk: %d bytes\n", getFreeSectorCount(p) * bytes_per_sector);
     printf("\n");
     printf("==============\n");
 
-    printf("The number of files in the disk: %d\n\n", num_heads);
+    // TODO
+    printf("The number of files in the disk: %d\n\n", 0);
     printf("Number of FAT copies: %d\n", fat_count);
     printf("Sectors per FAT: %d\n", sectors_per_fat);
 
