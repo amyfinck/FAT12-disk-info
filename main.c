@@ -3,6 +3,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <string.h>
 
 #include<sys/mman.h>
 #include<string.h>
@@ -65,6 +66,27 @@ int getFreeSectorCount(char* p)
     return freeSectors;
 }
 
+void getVolumeLabel(char* p)
+{
+    // if we get a value for disk label in the boot
+    if(disk_label[0] != ' ') return;
+
+    // otherwise look for an entry in the root directory with attribute "volume_label" (0x08)
+    int rootOffset = 512 * 19;
+    for(int i = 0; i < 16*32; i+=32)
+    {
+        // attributes offset is 11
+        uint16_t attributes = 0;
+        memcpy(&attributes, (p + rootOffset + i + 11), 1);
+
+        if(attributes == 0x08)
+        {
+            strncpy(disk_label, p + rootOffset + i, 11);
+            return;
+        }
+    }
+}
+
 int main(int argc, char* argv[])
 {
     if(argc == 1)
@@ -110,8 +132,8 @@ int main(int argc, char* argv[])
     memcpy(&sectors_per_fat, (p + 22), 2);
 
     printf("OS Name: %s\n", os_name);
-    // TODO - get from root directory
-    printf("Label of the disk: %s\n", "");
+    getVolumeLabel(p);
+    printf("Label of the disk: %s\n", disk_label);
     printf("Total size of the disk: %d bytes\n", total_sector_count * bytes_per_sector);
     printf("Free size of the disk: %d bytes\n", getFreeSectorCount(p) * bytes_per_sector);
     printf("\n");
