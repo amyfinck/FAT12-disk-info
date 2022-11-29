@@ -8,6 +8,7 @@ all: main
 
 main: main.c
 	$(CC) -o diskinfo main.c
+	$(CC) -o disklist disklist.c
 
 debug:
 	$(CC) -g -o diskinfo main.c
