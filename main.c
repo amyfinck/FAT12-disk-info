@@ -8,6 +8,9 @@
 #include<sys/mman.h>
 #include<string.h>
 
+#define BYTES_PER_SECTOR 512
+#define BYTES_PER_DIR_ENTRY 32
+
 static unsigned int bytes_per_sector;
 static char* os_name;
 static char* disk_label;
@@ -72,8 +75,8 @@ void getVolumeLabel(char* p)
     if(disk_label[0] != ' ') return;
 
     // otherwise look for an entry in the root directory with attribute "volume_label" (0x08)
-    int rootOffset = 512 * 19;
-    for(int i = 0; i < 16*32; i+=32)
+    int rootOffset = 19 * BYTES_PER_SECTOR;
+    for(int i = 0; i < 16 * BYTES_PER_DIR_ENTRY; i += BYTES_PER_DIR_ENTRY)
     {
         // attributes offset is 11
         uint16_t attributes = 0;
@@ -85,6 +88,40 @@ void getVolumeLabel(char* p)
             return;
         }
     }
+}
+
+int getFilesOnDisk(char* p, int offset)
+{
+    int fileCount = 0;
+    int byteOffset = offset * BYTES_PER_SECTOR;
+    for(int i = 0; i < 16 * BYTES_PER_DIR_ENTRY; i += BYTES_PER_DIR_ENTRY)
+    {
+        // if this entry is not empty
+        if((p + byteOffset + i)[0] != 0x00)
+        {
+            // attributes offset is 11
+            uint16_t attributes = 0;
+            memcpy(&attributes, (p + byteOffset + i + 11), 1);
+
+            // check that it isn't a volume label or a subdirectory
+            if( ((attributes & 0x08) == 0) && ((attributes & 0x10) == 0))
+            {
+                fileCount++;
+            }
+
+            // if it is a subdirectory
+            // TODO - TEST IF THIS WORKS
+            if((attributes & 0x10) != 0)
+            {
+                // if this is a subdirectory, find where it starts (first logical cluster field)
+                uint16_t firstLogicalCluster = 0;
+                memcpy(&firstLogicalCluster, (p + byteOffset + i + 26), 2);
+
+                fileCount += getFilesOnDisk(p, 33 + firstLogicalCluster);
+            }
+        }
+    }
+    return fileCount;
 }
 
 int main(int argc, char* argv[])
@@ -139,8 +176,8 @@ int main(int argc, char* argv[])
     printf("\n");
     printf("==============\n");
 
-    // TODO
-    printf("The number of files in the disk: %d\n\n", 0);
+    // offset parameter = 19 for root directory
+    printf("The number of files in the disk: %d\n\n", getFilesOnDisk(p, 19));
     printf("Number of FAT copies: %d\n", fat_count);
     printf("Sectors per FAT: %d\n", sectors_per_fat);
 
