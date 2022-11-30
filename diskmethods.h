@@ -17,5 +17,7 @@
 int getFatEntry(int position, char* p);
 int getFreeSectorCount(char* p);
 int getFilesOnDisk(char* p, int offset);
+void printCreationDateTime(int creationDate, int creationTime);
+void printMonth(int month);
 
 #endif //CSC360_ASSIGNMENT3_DISKMETHODS_H

@@ -7,6 +7,7 @@
 #include<sys/mman.h>
 #include<string.h>
 #include "linkedlist.h"
+#include "diskmethods.h"
 
 #define BYTES_PER_SECTOR 512
 #define BYTES_PER_DIR_ENTRY 32
@@ -25,6 +26,8 @@ static unsigned int num_heads;
 void printDirectory(char* p, int offset, char* dirName)
 {
     Subdirectory * head = NULL;
+
+    // TODO - refactor so date, time, size only accessed once for files and subdirs
 
     printf("%s\n", dirName);
     printf("==================\n");
@@ -59,18 +62,17 @@ void printDirectory(char* p, int offset, char* dirName)
                     if(fileExt[k] == ' ') fileExt[k] = '\0';
                 }
                 snprintf(fullFileName, 13, "%s.%s", fileName, fileExt);
-                printf("%20s \n", fullFileName);
+                printf("%20s ", fullFileName);
                 free(fileName);
                 free(fileExt);
                 free(fullFileName);
 
-//                int creationDate = 0;
-//                memcpy(&fileSize, (p + byteOffset + i + 28), 4);
-//                printf("%10d ", fileSize);
-//
-//                int creationTime = 0;
-//                memcpy(&fileSize, (p + byteOffset + i + 28), 4);
-//                printf("%10d ", fileSize);
+                uint16_t creationDate = 0;
+                memcpy(&creationDate, (p + byteOffset + i + 16), 2);
+                uint16_t creationTime = 0;
+                memcpy(&creationTime, (p + byteOffset + i + 14), 2);
+                printCreationDateTime(creationDate, creationTime);
+                printf("\n");
             }
 
             // if it is a subdirectory
@@ -89,7 +91,7 @@ void printDirectory(char* p, int offset, char* dirName)
                 {
                     printf("D ");
                     printf("%10d ", dirSize);
-                    printf("%20s \n", subdirName);
+                    printf("%20s ", subdirName);
 
                     // if this is a subdirectory, find where it starts (first logical cluster field)
                     uint16_t firstLogicalCluster = 0;
@@ -97,6 +99,14 @@ void printDirectory(char* p, int offset, char* dirName)
 
                     // store in linked list until end of subdirectory
                     head = addSubdir(33 + firstLogicalCluster - 2, subdirName, head);
+
+                    // TODO - Where is this located for subdirectories? These bits appear to all be 0.
+                    uint16_t creationDate = 0;
+                    memcpy(&creationDate, (p + byteOffset + i + 16), 2);
+                    uint16_t creationTime = 0;
+                    memcpy(&creationTime, (p + byteOffset + i + 14), 2);
+                    printCreationDateTime(creationDate, creationTime);
+                    printf("\n");
                 }
             }
         }

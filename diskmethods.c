@@ -81,3 +81,80 @@ int getFilesOnDisk(char* p, int offset)
     return fileCount;
 }
 
+void printCreationDateTime(int creationDate, int creationTime)
+{
+
+    /*
+     * creationDate info from wikipedia
+     * bits 15 - 9 are the year (0 = 1980)
+     * bits 8 - 5 are month (1 - 12)
+     * bits 4 - 0 are day
+     */
+
+    uint8_t year = (creationDate & 0xFE00) >> 9;
+    uint8_t month = (creationDate & 0x01E0) >> 5;
+    uint8_t day = (creationDate & 0x001F);
+
+    printMonth(month);
+    printf(" ");
+    if(day != 0) printf("%2d ", day);
+    if(year != 0) printf("%d ", year + 1980);
+
+    /*
+     * creationTime info from wikipedia
+     * bits 15 - 11 are hours (0–23)
+     * bits 10 - 5 are minutes (0-59)
+     * bits 4 - 0 are seconds/2 (0-29) (ignore)
+     */
+    uint8_t hours = (creationTime & 0xF800) >> 11;
+    uint8_t minutes = (creationTime & 0x07E0) >> 5;
+
+    if(!(hours == 0 & minutes == 0)) printf("%2d:%02d", hours, minutes);
+}
+
+void printMonth(int month)
+{
+    switch(month)
+    {
+        case 1:
+            printf("Jan");
+            break;
+        case 2:
+            printf("Feb");
+            break;
+        case 3:
+            printf("Mar");
+            break;
+        case 4:
+            printf("Apr");
+            break;
+        case 5:
+            printf("May");
+            break;
+        case 6:
+            printf("Jun");
+            break;
+        case 7:
+            printf("Jul");
+            break;
+        case 8:
+            printf("Aug");
+            break;
+        case 9:
+            printf("Sep");
+            break;
+        case 10:
+            printf("Oct");
+            break;
+        case 11:
+            printf("Nov");
+            break;
+        case 12:
+            printf("Dec");
+            break;
+        default:
+            printf("   ");
+    }
+
+}
+
