@@ -2,6 +2,11 @@
 
 void copyFileFromRoot(char* p, char* fileName)
 {
+    for(int i = 0; i < 16; i++)
+    {
+        fileName[i] = toupper(fileName[i]);
+    }
+
     // check that the file exists
     int dirEntryNum = getFileDirEntry(p, ROOT_OFFSET, fileName);
     if(dirEntryNum == -1)

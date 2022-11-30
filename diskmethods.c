@@ -1,5 +1,12 @@
 #include "diskmethods.h"
 
+int getDiskSize(char* p)
+{
+    int total_sector_count;
+    memcpy(&total_sector_count, (p + 19), 2);
+    return total_sector_count * BYTES_PER_SECTOR;
+}
+
 // gets the fat table entry at position, starting at 0 for the first entry.
 int getFatEntry(char* p, int position)
 {
@@ -36,6 +43,22 @@ int getFatEntry(char* p, int position)
     return fatEntry;
 }
 
+void writeToFat(char* p, int logicalSector, int nextLogicalSector)
+{
+    // skip boot sector
+    int fatOffset = BYTES_PER_SECTOR;
+    uint16_t fatEntry;
+
+    if(logicalSector % 2 == 0)
+    {
+        // TODO
+    }
+    else
+    {
+        // TODO
+    }
+}
+
 int getFreeSectorCount(char* p)
 {
     int freeSectors = 0;
@@ -45,6 +68,15 @@ int getFreeSectorCount(char* p)
         if(getFatEntry(p, i) == 0x00) freeSectors++;
     }
     return freeSectors;
+}
+
+int getFreeSector(char* p)
+{
+    for(int i = 2; i <= 2848; i++)
+    {
+        if(getFatEntry(p, i) == 0x00) return i;
+    }
+    return -1;
 }
 
 int getFilesOnDisk(char* p, int offset)
@@ -204,6 +236,22 @@ int getFileDirEntry(char* p, int offset, char* fileName)
     return -1;
 }
 
+int getFreeDirEntry(char* p, int offset)
+{
+    int byteOffset = offset * BYTES_PER_SECTOR;
+
+    // for each entry in the directory
+    for(int i = 0; i < 16 * BYTES_PER_DIR_ENTRY; i += BYTES_PER_DIR_ENTRY)
+    {
+        // if this entry is not empty
+        if((p + byteOffset + i)[0] == 0x00)
+        {
+            return i / BYTES_PER_DIR_ENTRY;
+        }
+    }
+    return -1;
+}
+
 int getFileSize(char* p, int offset, int dirEntryNum)
 {
     int fileSize = 0;
@@ -238,4 +286,96 @@ void copyFileToLocalDir(char* p, char* fileCopy_p, int fileSize, int dirOffset, 
 int logicalToPhysicalSector(int logicalSector)
 {
     return 33 + logicalSector - 2;
+}
+
+void addMetadataToDir(char* p, char* fullFileName, int size, int offset, uint8_t logicalSector)
+{
+    int freeEntry = getFreeDirEntry(p, offset);
+    if(freeEntry == -1)
+    {
+        printf("Error: Directory is full");
+        exit(1);
+    }
+
+    printf("free entry is %d\n", freeEntry);
+
+    printf("Full filename is %s\n", fullFileName);
+    char* fileName = malloc(sizeof(char) * 8);
+    char* fileExt = malloc(sizeof(char) * 3);
+
+    char *delim = ".";
+    strncpy(fileName, strtok(fullFileName, delim), 8);
+    strncpy(fileExt, strtok(NULL, delim), 3);
+
+    for(int i = 0; i < 8; i++)
+    {
+        // file name
+        p[offset*BYTES_PER_SECTOR + freeEntry*BYTES_PER_DIR_ENTRY + i] = toupper(fileName[i]);
+    }
+    for(int i = 0; i < 3; i++)
+    {
+        // file ext
+        p[offset*BYTES_PER_SECTOR + freeEntry*BYTES_PER_DIR_ENTRY + 8 + i] = toupper(fileExt[i]);
+    }
+
+    // attribute
+    p[offset*BYTES_PER_SECTOR + freeEntry*BYTES_PER_DIR_ENTRY + 11] = 0x00;
+
+    time_t time_now = time(NULL);
+    struct tm *now = localtime(&time_now);
+    int year = now->tm_year + 1900;
+    int month = now->tm_mon + 1;
+    int day = now->tm_mday;
+    uint8_t hour = now->tm_hour;
+    uint8_t minute = now->tm_min;
+
+    // TODO - do I need to do lastwritetime, ect
+    p[offset*BYTES_PER_SECTOR + freeEntry*BYTES_PER_DIR_ENTRY + 14] = ((minute & 0x3F) << 5 | 0x00);
+    p[offset*BYTES_PER_SECTOR + freeEntry*BYTES_PER_DIR_ENTRY + 15] = ((hour & 0x1F) << 3 | (minute & 0x3F) >> 3);
+    p[offset*BYTES_PER_SECTOR + freeEntry*BYTES_PER_DIR_ENTRY + 16] = ( (month & 0xF) << 5 | (day & 0x1F) );
+    p[offset*BYTES_PER_SECTOR + freeEntry*BYTES_PER_DIR_ENTRY + 17] = (( (year-1980) & 0x7F) << 1 | (month & 0xF) >> 3);
+
+    p[offset*BYTES_PER_SECTOR + freeEntry*BYTES_PER_DIR_ENTRY + 26] = (char)logicalSector;
+    p[offset*BYTES_PER_SECTOR + freeEntry*BYTES_PER_DIR_ENTRY + 28] = size;
+}
+
+void copyToDisk(char* p, char* localFile_p, char* fileName, int size, int offset)
+{
+    int bytesToCopy = size;
+
+    int freeSector = getFreeSector(p);
+    if(freeSector == -1)
+    {
+        printf("Error: No free sectors remain\n");
+        exit(1);
+    }
+
+    addMetadataToDir(p, fileName, size, offset, freeSector);
+
+    for(int j = 0; j <= size / BYTES_PER_SECTOR; j++)
+    {
+        int logicalSector = freeSector;
+        for(int i = 0; i < BYTES_PER_SECTOR; i++)
+        {
+            if (bytesToCopy > 0)
+            {
+                p[logicalToPhysicalSector(logicalSector)* BYTES_PER_SECTOR + i] = localFile_p[size - bytesToCopy];
+                bytesToCopy--;
+            }
+        }
+        int nextLogicalSector = getFreeSector(p);
+        writeToFat(p, logicalSector, nextLogicalSector);
+    }
+
+
+
+//    memcpy(&firstLogicalCluster, (p + dirOffset*BYTES_PER_SECTOR + dirEntry*BYTES_PER_DIR_ENTRY + 26), 2);
+//
+//    int physicalSectorNumber = 33 + firstLogicalCluster - 2;
+
+    p[logicalToPhysicalSector(freeSector) * BYTES_PER_SECTOR] = 'h';
+    p[logicalToPhysicalSector(freeSector) * BYTES_PER_SECTOR + 1] = 'e';
+    p[logicalToPhysicalSector(freeSector) * BYTES_PER_SECTOR + 2] = 'l';
+    p[logicalToPhysicalSector(freeSector) * BYTES_PER_SECTOR + 3] = 'l';
+    p[logicalToPhysicalSector(freeSector) * BYTES_PER_SECTOR + 4] = '\0';
 }

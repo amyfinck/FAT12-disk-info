@@ -143,7 +143,7 @@ int main(int argc, char* argv[])
     }
 
     // offset of 19 to start with root directory
-    printDirectory(p, 19, "ROOT");
+    printDirectory(p, ROOT_OFFSET, "ROOT");
 
     // unmap region
     munmap(p, statbuf.st_size); // the modifed the memory data would be mapped to the disk image

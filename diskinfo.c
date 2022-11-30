@@ -18,7 +18,6 @@ static char* os_name;
 static char* disk_label;
 static unsigned int reserved_clusters;
 static unsigned int fat_count;
-static unsigned int total_sector_count;
 static unsigned int sectors_per_fat;
 
 void getVolumeLabel(char* p)
@@ -27,7 +26,7 @@ void getVolumeLabel(char* p)
     if(disk_label[0] != ' ') return;
 
     // otherwise look for an entry in the root directory with attribute "volume_label" (0x08)
-    int rootOffset = 19 * BYTES_PER_SECTOR;
+    int rootOffset = ROOT_OFFSET * BYTES_PER_SECTOR;
     for(int i = 0; i < 16 * BYTES_PER_DIR_ENTRY; i += BYTES_PER_DIR_ENTRY)
     {
         // attributes offset is 11
@@ -84,19 +83,17 @@ int main(int argc, char* argv[])
     strncpy(os_name, (p + 3), 8);
     strncpy(disk_label, (p + 43), 11);
     memcpy(&fat_count, (p + 16), 1);
-    memcpy(&total_sector_count, (p + 19), 2);
     memcpy(&sectors_per_fat, (p + 22), 2);
 
     printf("OS Name: %s\n", os_name);
     getVolumeLabel(p);
     printf("Label of the disk: %s\n", disk_label);
-    printf("Total size of the disk: %d bytes\n", total_sector_count * BYTES_PER_SECTOR);
+    printf("Total size of the disk: %d bytes\n", getDiskSize(p));
     printf("Free size of the disk: %d bytes\n", getFreeSectorCount(p) * BYTES_PER_SECTOR);
     printf("\n");
     printf("==============\n");
 
-    // offset parameter = 19 for root directory
-    printf("The number of files in the disk: %d\n\n", getFilesOnDisk(p, 19));
+    printf("The number of files in the disk: %d\n\n", getFilesOnDisk(p, ROOT_OFFSET));
     printf("Number of FAT copies: %d\n", fat_count);
     printf("Sectors per FAT: %d\n", sectors_per_fat);
 
