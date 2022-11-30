@@ -1,28 +1,25 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <string.h>
-
-#include<sys/mman.h>
-#include<string.h>
+//#include <stdio.h>
+//#include <stdlib.h>
+//#include <fcntl.h>
+//#include <sys/stat.h>
+//#include <unistd.h>
+//#include <string.h>
+//
+//#include<sys/mman.h>
+//#include<string.h>
 #include "diskmethods.h"
 
-#define BYTES_PER_SECTOR 512
-#define BYTES_PER_DIR_ENTRY 32
-#define ROOT_OFFSET 19
+//#define BYTES_PER_SECTOR 512
+//#define BYTES_PER_DIR_ENTRY 32
+//#define ROOT_OFFSET 19
 
 static unsigned int bytes_per_sector;
 static char* os_name;
 static char* disk_label;
-static unsigned int sectors_per_cluster;
 static unsigned int reserved_clusters;
 static unsigned int fat_count;
-static unsigned int max_root_entries;
 static unsigned int total_sector_count;
 static unsigned int sectors_per_fat;
-static unsigned int num_heads;
 
 void getVolumeLabel(char* p)
 {
@@ -71,19 +68,21 @@ int main(int argc, char* argv[])
     if (p == MAP_FAILED)
     {
         printf("Error: failed to map memory\n");
+        close(file_descriptor);
         exit(1);
     }
 
-    // boot sector
     os_name = malloc(sizeof(char) * 8);
-    if(os_name == NULL) printf("error - malloc failed\n");
     disk_label = malloc(sizeof(char) * 11);
-    if(disk_label == NULL) printf("error - malloc failed\n");
-    // TODO - remove unused ones
+    if(disk_label == NULL | os_name == NULL)
+    {
+        printf("error - malloc failed\n");
+        close(file_descriptor);
+        exit(1);
+    }
+
     strncpy(os_name, (p + 3), 8);
     strncpy(disk_label, (p + 43), 11);
-    memcpy(&bytes_per_sector, (p + 11), 2);
-    memcpy(&reserved_clusters, (p + 14), 2);
     memcpy(&fat_count, (p + 16), 1);
     memcpy(&total_sector_count, (p + 19), 2);
     memcpy(&sectors_per_fat, (p + 22), 2);
@@ -91,8 +90,8 @@ int main(int argc, char* argv[])
     printf("OS Name: %s\n", os_name);
     getVolumeLabel(p);
     printf("Label of the disk: %s\n", disk_label);
-    printf("Total size of the disk: %d bytes\n", total_sector_count * bytes_per_sector);
-    printf("Free size of the disk: %d bytes\n", getFreeSectorCount(p) * bytes_per_sector);
+    printf("Total size of the disk: %d bytes\n", total_sector_count * BYTES_PER_SECTOR);
+    printf("Free size of the disk: %d bytes\n", getFreeSectorCount(p) * BYTES_PER_SECTOR);
     printf("\n");
     printf("==============\n");
 

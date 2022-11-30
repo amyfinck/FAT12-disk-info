@@ -1,36 +1,19 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <string.h>
-#include<sys/mman.h>
-#include<string.h>
 #include "linkedlist.h"
 #include "diskmethods.h"
 
-#define BYTES_PER_SECTOR 512
-#define BYTES_PER_DIR_ENTRY 32
-
-static unsigned int bytes_per_sector;
 static char* os_name;
 static char* disk_label;
-static unsigned int sectors_per_cluster;
-static unsigned int reserved_clusters;
-static unsigned int fat_count;
-static unsigned int max_root_entries;
-static unsigned int total_sector_count;
-static unsigned int sectors_per_fat;
-static unsigned int num_heads;
 
 void printDirectory(char* p, int offset, char* dirName)
 {
-    Subdirectory * head = NULL;
-
     // TODO - refactor so date, time, size only accessed once for files and subdirs
+
+    int subdirOffsets[16] = {0};
+    char subdirNames[16][8];
 
     printf("%s\n", dirName);
     printf("==================\n");
+
     int byteOffset = offset * BYTES_PER_SECTOR;
     for(int i = 0; i < 16 * BYTES_PER_DIR_ENTRY; i += BYTES_PER_DIR_ENTRY)
     {
@@ -41,7 +24,7 @@ void printDirectory(char* p, int offset, char* dirName)
             uint16_t attributes = 0;
             memcpy(&attributes, (p + byteOffset + i + 11), 1);
 
-            // check that it isn't a volume label or a subdirectory, then its a file
+            // check that it isn't a volume label or a subdirectory, then it's a file
             if( ((attributes & 0x08) == 0) && ((attributes & 0x10) == 0))
             {
                 printf("F ");
@@ -97,8 +80,19 @@ void printDirectory(char* p, int offset, char* dirName)
                     uint16_t firstLogicalCluster = 0;
                     memcpy(&firstLogicalCluster, (p + byteOffset + i + 26), 2);
 
-                    // store in linked list until end of subdirectory
-                    head = addSubdir(33 + firstLogicalCluster - 2, subdirName, head);
+                    // store to call recursively at end of function
+                    for(int j = 0; j < 16; j++)
+                    {
+                        if(subdirOffsets[j] == 0)
+                        {
+                            subdirOffsets[j] = 33 + firstLogicalCluster - 2;
+                            for(int k = 0; k < 8; k++)
+                            {
+                                subdirNames[j][k] = subdirName[k];
+                            }
+                            break;
+                        }
+                    }
 
                     // TODO - Where is this located for subdirectories? These bits appear to all be 0.
                     uint16_t creationDate = 0;
@@ -111,12 +105,10 @@ void printDirectory(char* p, int offset, char* dirName)
             }
         }
     }
-    while(head != NULL)
+    for(int i = 0; i < 16; i++)
     {
-        printDirectory(p, head->offset, head->subdirName);
-        head = deleteSub(head->offset, head);
-        // TODO fix segfault
-        //free(head->subdirName);
+        if(subdirOffsets[i] == 0) break;
+        printDirectory(p, subdirOffsets[i], subdirNames[i]);
     }
 }
 

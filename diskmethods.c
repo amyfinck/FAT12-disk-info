@@ -67,14 +67,18 @@ int getFilesOnDisk(char* p, int offset)
             }
 
             // if it is a subdirectory
-            // TODO - TEST IF THIS WORKS
             if((attributes & 0x10) != 0)
             {
-                // if this is a subdirectory, find where it starts (first logical cluster field)
-                uint16_t firstLogicalCluster = 0;
-                memcpy(&firstLogicalCluster, (p + byteOffset + i + 26), 2);
-
-                fileCount += getFilesOnDisk(p, 33 + firstLogicalCluster);
+                char* subdirName = malloc(sizeof(char) * 8);
+                strncpy(subdirName, (p + byteOffset + i + 0), 8);
+                if(subdirName[0] != '.')
+                {
+                    uint16_t firstLogicalCluster;
+                    memcpy(&firstLogicalCluster, (p + byteOffset + i + 26), 2);
+                    // recursively call this method for this subdirectory
+                    fileCount += getFilesOnDisk(p, 33 + firstLogicalCluster - 2);
+                }
+                free(subdirName);
             }
         }
     }
@@ -188,7 +192,6 @@ int getFileDirEntry(char* p, int offset, char* fileName)
 
                 if(strncmp(fullFileName, fileName, 13) == 0)
                 {
-                    printf("about to return %d\n", i / BYTES_PER_DIR_ENTRY);
                     return i / BYTES_PER_DIR_ENTRY;
                 }
 
@@ -204,7 +207,6 @@ int getFileDirEntry(char* p, int offset, char* fileName)
 int getFileSize(char* p, int offset, int dirEntryNum)
 {
     int fileSize = 0;
-    printf("my offset is %d and my dir entry number is %d\n", offset, dirEntryNum);
     memcpy(&fileSize, (p + offset*BYTES_PER_SECTOR + dirEntryNum*BYTES_PER_DIR_ENTRY + 28), 4);
     return fileSize;
 }

@@ -10,6 +10,7 @@ main: diskinfo.c
 	$(CC) -o diskinfo diskinfo.c diskmethods.c
 	$(CC) -o disklist disklist.c diskmethods.c linkedlist.c
 	$(CC) -o diskget diskget.c diskmethods.c
+	$(CC) -o diskput diskput.c diskmethods.c
 
 debug:
 	$(CC) -g -o diskinfo diskinfo.c

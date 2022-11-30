@@ -1,11 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <fcntl.h>
-#include <sys/stat.h>
-#include <unistd.h>
-#include <string.h>
-#include<sys/mman.h>
-#include<string.h>
 #include "diskmethods.h"
 
 void copyFileFromRoot(char* p, char* fileName)
@@ -14,7 +6,7 @@ void copyFileFromRoot(char* p, char* fileName)
     int dirEntryNum = getFileDirEntry(p, ROOT_OFFSET, fileName);
     if(dirEntryNum == -1)
     {
-        printf("File not found\n");
+        printf("File not found in root directory - ensure name and extention in all caps\n");
         return;
     }
 
@@ -51,6 +43,8 @@ void copyFileFromRoot(char* p, char* fileName)
     copyFileToLocalDir(p, fileCopy_p, fileSize, ROOT_OFFSET, dirEntryNum);
 
     munmap(fileCopy_p, statbuf.st_size);
+
+    printf("%s has been copied to your current directory\n", fileName);
 }
 
 int main(int argc, char* argv[])
