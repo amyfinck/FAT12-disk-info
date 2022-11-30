@@ -11,13 +11,46 @@
 void copyFileFromRoot(char* p, char* fileName)
 {
     // check that the file exists
-    if(isFileInDirectory(p, ROOT_OFFSET, fileName) == -1)
+    int dirEntryNum = getFileDirEntry(p, ROOT_OFFSET, fileName);
+    if(dirEntryNum == -1)
     {
         printf("File not found\n");
         return;
     }
 
-    // if it is found, copy it from the root
+    // create a file in the current directory with the same name
+    int filedescriptor;
+    struct stat statbuf;
+    filedescriptor = open(fileName, O_RDWR | O_CREAT, 0666);
+    fstat(filedescriptor, &statbuf);
+
+    int fileSize = getFileSize(p, ROOT_OFFSET, dirEntryNum);
+
+    // stretch the file to fileSize so we map the right sized file
+    off_t lretval = lseek(filedescriptor, fileSize-1, SEEK_SET);
+    if(lretval == -1) {
+        printf("error: lseek failed\n");
+        close(filedescriptor);
+        exit(1);
+    }
+
+    ssize_t wretval = write(filedescriptor, "", 1);
+    if(wretval == -1){
+        printf("error: write failed\n");
+        close(filedescriptor);
+        exit(1);
+    }
+
+    char* fileCopy_p = mmap(NULL, fileSize, PROT_WRITE, MAP_SHARED, filedescriptor, 0);
+    if (fileCopy_p == MAP_FAILED) {
+        printf("Error: failed to map memory\n");
+        exit(1);
+    }
+
+    // copy it from the root to the current directory
+    copyFileToLocalDir(p, fileCopy_p, fileSize, ROOT_OFFSET, dirEntryNum);
+
+    munmap(fileCopy_p, statbuf.st_size);
 }
 
 int main(int argc, char* argv[])
@@ -42,14 +75,14 @@ int main(int argc, char* argv[])
     char * p = mmap(NULL, statbuf.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, file_descriptor, 0);
     if (p == MAP_FAILED)
     {
-        printf("Error: failed to map memory\n");
+        printf("Error: failed to map memory HERE\n");
         exit(1);
     }
 
     copyFileFromRoot(p, argv[2]);
 
     // unmap region
-    munmap(p, statbuf.st_size); // the modifed the memory data would be mapped to the disk image
+    munmap(p, statbuf.st_size);
     close(file_descriptor);
 
     return 0;

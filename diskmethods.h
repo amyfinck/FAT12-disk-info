@@ -15,11 +15,14 @@
 #define BYTES_PER_DIR_ENTRY 32
 #define ROOT_OFFSET 19
 
-int getFatEntry(int position, char* p);
+int getFatEntry(char* p, int position);
 int getFreeSectorCount(char* p);
 int getFilesOnDisk(char* p, int offset);
 void printCreationDateTime(int creationDate, int creationTime);
 void printMonth(int month);
-int isFileInDirectory(char* p, int offset, char* fileName);
+int getFileDirEntry(char* p, int offset, char* fileName);
+void copyFileToLocalDir(char* p, char* fileCopy_p, int fileSize, int dirOffset, int dirEntry);
+int getFileSize(char* p, int offset, int dirEntryNum);
+int logicalToPhysicalSector(int logicalSector);
 
 #endif //CSC360_ASSIGNMENT3_DISKMETHODS_H

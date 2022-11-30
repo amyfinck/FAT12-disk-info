@@ -137,6 +137,7 @@ int main(int argc, char* argv[])
     struct stat statbuf;
 
     file_descriptor = open(argv[1], O_RDWR);
+    // TODO - check on fail to open file
 
     // fstat gets the file status, and puts all the relevant information in sb
     fstat(file_descriptor, &statbuf);

@@ -1,10 +1,10 @@
 #include "diskmethods.h"
 
 // gets the fat table entry at position, starting at 0 for the first entry.
-int getFatEntry(int position, char* p)
+int getFatEntry(char* p, int position)
 {
-    // 512 to skip boot sector, first 2 entries are reserved, each entry is 12 bits, so 2 entries is 3 bytes
-    int fatOffset = 512 + 3;
+    // skip boot sector
+    int fatOffset = BYTES_PER_SECTOR;
     uint16_t fatEntry;
 
     if(position % 2 == 0)
@@ -15,8 +15,8 @@ int getFatEntry(int position, char* p)
         uint16_t firstByte = 0;
         uint16_t secondByte = 0;
 
-        memcpy(&firstByte, (p + fatOffset + firstByteOffset), 1);
-        memcpy(&secondByte, (p + fatOffset + secondByteOffset), 1);
+        memcpy(&firstByte, (p + 1*BYTES_PER_SECTOR + firstByteOffset), 1);
+        memcpy(&secondByte, (p + 1*BYTES_PER_SECTOR + secondByteOffset), 1);
 
         fatEntry = (firstByte & 0xF) << 8 | secondByte;
     }
@@ -40,9 +40,9 @@ int getFreeSectorCount(char* p)
 {
     int freeSectors = 0;
     // for all sectors in the data area
-    for(int i = 0; i <= 2846; i++)
+    for(int i = 2; i <= 2848; i++)
     {
-        if(getFatEntry(i, p) == 0x00) freeSectors++;
+        if(getFatEntry(p, i) == 0x00) freeSectors++;
     }
     return freeSectors;
 }
@@ -156,7 +156,8 @@ void printMonth(int month)
     }
 }
 
-int isFileInDirectory(char* p, int offset, char* fileName)
+// returns the directory entry number that fileName exists at, if not found returns -1.
+int getFileDirEntry(char* p, int offset, char* fileName)
 {
     int byteOffset = offset * BYTES_PER_SECTOR;
 
@@ -185,10 +186,10 @@ int isFileInDirectory(char* p, int offset, char* fileName)
                 }
                 snprintf(fullFileName, 13, "%s.%s", dirFileName, fileExt);
 
-                printf("comparing %s to %s\n", fullFileName, fileName);
                 if(strncmp(fullFileName, fileName, 13) == 0)
                 {
-                    return i * BYTES_PER_DIR_ENTRY;
+                    printf("about to return %d\n", i / BYTES_PER_DIR_ENTRY);
+                    return i / BYTES_PER_DIR_ENTRY;
                 }
 
                 free(dirFileName);
@@ -200,5 +201,39 @@ int isFileInDirectory(char* p, int offset, char* fileName)
     return -1;
 }
 
+int getFileSize(char* p, int offset, int dirEntryNum)
+{
+    int fileSize = 0;
+    printf("my offset is %d and my dir entry number is %d\n", offset, dirEntryNum);
+    memcpy(&fileSize, (p + offset*BYTES_PER_SECTOR + dirEntryNum*BYTES_PER_DIR_ENTRY + 28), 4);
+    return fileSize;
+}
 
+void copyFileToLocalDir(char* p, char* fileCopy_p, int fileSize, int dirOffset, int dirEntry)
+{
+    int bytesToCopy = fileSize;
 
+    uint16_t firstLogicalCluster;
+    memcpy(&firstLogicalCluster, (p + dirOffset*BYTES_PER_SECTOR + dirEntry*BYTES_PER_DIR_ENTRY + 26), 2);
+
+    int physicalSectorNumber = 33 + firstLogicalCluster - 2;
+
+    int nextLogicalCluster = firstLogicalCluster;
+    while((0x000 < nextLogicalCluster) && (nextLogicalCluster < 0xFF0))
+    {
+        for(int i = 0; i < BYTES_PER_SECTOR; i++)
+        {
+            if(bytesToCopy > 0)
+            {
+                fileCopy_p[fileSize - bytesToCopy] = p[logicalToPhysicalSector(nextLogicalCluster)* BYTES_PER_SECTOR + i];
+                bytesToCopy--;
+            }
+        }
+        nextLogicalCluster = getFatEntry(p, nextLogicalCluster);
+    }
+}
+
+int logicalToPhysicalSector(int logicalSector)
+{
+    return 33 + logicalSector - 2;
+}
