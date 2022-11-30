@@ -11,6 +11,7 @@
 
 #define BYTES_PER_SECTOR 512
 #define BYTES_PER_DIR_ENTRY 32
+#define ROOT_OFFSET 19
 
 static unsigned int bytes_per_sector;
 static char* os_name;
@@ -60,7 +61,6 @@ int main(int argc, char* argv[])
     int file_descriptor;
     struct stat statbuf;
 
-    // open is a lower-level version of fopen. Note in example they use O_RDWR, but I think I only want to read.
     file_descriptor = open(argv[1], O_RDWR);
 
     // fstat gets the file status, and puts all the relevant information in sb

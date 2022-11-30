@@ -83,9 +83,8 @@ int getFilesOnDisk(char* p, int offset)
 
 void printCreationDateTime(int creationDate, int creationTime)
 {
-
     /*
-     * creationDate info from wikipedia
+     * creationDate info from wikipedia:
      * bits 15 - 9 are the year (0 = 1980)
      * bits 8 - 5 are month (1 - 12)
      * bits 4 - 0 are day
@@ -101,7 +100,7 @@ void printCreationDateTime(int creationDate, int creationTime)
     if(year != 0) printf("%d ", year + 1980);
 
     /*
-     * creationTime info from wikipedia
+     * creationTime info from wikipedia:
      * bits 15 - 11 are hours (0–23)
      * bits 10 - 5 are minutes (0-59)
      * bits 4 - 0 are seconds/2 (0-29) (ignore)
@@ -155,6 +154,51 @@ void printMonth(int month)
         default:
             printf("   ");
     }
-
 }
+
+int isFileInDirectory(char* p, int offset, char* fileName)
+{
+    int byteOffset = offset * BYTES_PER_SECTOR;
+
+    // for each entry in the directory
+    for(int i = 0; i < 16 * BYTES_PER_DIR_ENTRY; i += BYTES_PER_DIR_ENTRY)
+    {
+        // if this entry is not empty
+        if((p + byteOffset + i)[0] != 0x00)
+        {
+            uint16_t attributes = 0;
+            memcpy(&attributes, (p + byteOffset + i + 11), 1); // attributes offset is 11
+
+            // check that it isn't a volume label or a subdirectory, then it's a file
+            if( ((attributes & 0x08) == 0) && ((attributes & 0x10) == 0))
+            {
+                char* fullFileName = malloc(sizeof(char) * 13);
+                char* dirFileName = malloc(sizeof(char) * 8);
+                char* fileExt = malloc(sizeof(char) * 3);
+                strncpy(dirFileName, (p + byteOffset + i + 0), 8);
+                for(int j = 0; j < 8; j++) {
+                    if(dirFileName[j] == ' ') dirFileName[j] = '\0';
+                }
+                strncpy(fileExt, (p + byteOffset + i + 8), 3);
+                for(int k = 0; k < 3; k++) {
+                    if(fileExt[k] == ' ') fileExt[k] = '\0';
+                }
+                snprintf(fullFileName, 13, "%s.%s", dirFileName, fileExt);
+
+                printf("comparing %s to %s\n", fullFileName, fileName);
+                if(strncmp(fullFileName, fileName, 13) == 0)
+                {
+                    return i * BYTES_PER_DIR_ENTRY;
+                }
+
+                free(dirFileName);
+                free(fileExt);
+                free(fullFileName);
+            }
+        }
+    }
+    return -1;
+}
+
+
 

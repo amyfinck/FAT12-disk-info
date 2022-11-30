@@ -136,7 +136,6 @@ int main(int argc, char* argv[])
     int file_descriptor;
     struct stat statbuf;
 
-    // open is a lower-level version of fopen. Note in example they use O_RDWR, but I think I only want to read.
     file_descriptor = open(argv[1], O_RDWR);
 
     // fstat gets the file status, and puts all the relevant information in sb
