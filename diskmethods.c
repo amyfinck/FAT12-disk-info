@@ -44,21 +44,20 @@ int getFatEntry(char* p, int position)
     return fatEntry;
 }
 
-void writeToFat(char* p, uint16_t logicalSector, uint16_t nextLogicalSector)
-{
-    // skip boot sector
-    int fatOffset = BYTES_PER_SECTOR;
-    uint16_t fatEntry;
+void writeToFat(char *p, int logSect, int value) {
 
-    if(logicalSector % 2 == 0)
+    // Skip boot sector and go to first FAT
+    p += BYTES_PER_SECTOR;
+
+    if (logSect % 2 == 0)
     {
-        p[(3 * logicalSector)/2 + 1] |= (nextLogicalSector & 0x0F00) >> 8;
-        p[(3 * logicalSector)/2] |= (nextLogicalSector & 0x00FF);
+        p[(3*logSect)/2+1] = ((value >> 8) & 0x0F) | ( p[1+(3*logSect)/2] & 0xF0);
+        p[(3*logSect)/2] = value & 0xFF;
     }
     else
     {
-        p[(3 * logicalSector)/2] |= ((nextLogicalSector & 0x0FF0) >> 4 );
-        p[(3 * logicalSector)/2 + 1] |=((nextLogicalSector & 0x000F) << 4);
+        p[(3*logSect)/2] = ((value<<4) & 0xF0) | (p[(3*logSect)/2] & 0x0F);
+        p[1+(3*logSect)/2] = (value>>4) & 0xFF;
     }
 }
 
@@ -271,9 +270,11 @@ void copyFileToLocalDir(char* p, char* fileCopy_p, int fileSize, int dirOffset, 
 
     int physicalSectorNumber = 33 + firstLogicalCluster - 2;
 
+    // TODO - getting stuck here
     int nextLogicalCluster = firstLogicalCluster;
     while((0x000 < nextLogicalCluster) && (nextLogicalCluster < 0xFF0))
     {
+        printf("a");
         for(int i = 0; i < BYTES_PER_SECTOR; i++)
         {
             if(bytesToCopy > 0)
@@ -282,6 +283,7 @@ void copyFileToLocalDir(char* p, char* fileCopy_p, int fileSize, int dirOffset, 
                 bytesToCopy--;
             }
         }
+        printf("%d ", nextLogicalCluster);
         nextLogicalCluster = getFatEntry(p, nextLogicalCluster);
     }
 }
@@ -299,8 +301,6 @@ void addMetadataToDir(char* p, char* fullFileName, int size, int offset, uint8_t
         printf("Error: Directory is full");
         exit(1);
     }
-
-    printf("free entry is %d\n", freeEntry);
 
     printf("Full filename is %s\n", fullFileName);
     char* fileName = malloc(sizeof(char) * 8);
@@ -339,14 +339,22 @@ void addMetadataToDir(char* p, char* fullFileName, int size, int offset, uint8_t
     p[offset*BYTES_PER_SECTOR + freeEntry*BYTES_PER_DIR_ENTRY + 17] = (( (year-1980) & 0x7F) << 1 | (month & 0xF) >> 3);
 
     p[offset*BYTES_PER_SECTOR + freeEntry*BYTES_PER_DIR_ENTRY + 26] = (char)logicalSector;
-    p[offset*BYTES_PER_SECTOR + freeEntry*BYTES_PER_DIR_ENTRY + 28] = size;
+    printf("passing in size %d\n", size);
+
+    p[offset*BYTES_PER_SECTOR + freeEntry*BYTES_PER_DIR_ENTRY + 28] = size & 0x000000FF;
+    p[offset*BYTES_PER_SECTOR + freeEntry*BYTES_PER_DIR_ENTRY + 29] = (size & 0x0000FF00) >> 8;
+    p[offset*BYTES_PER_SECTOR + freeEntry*BYTES_PER_DIR_ENTRY + 30] = (size & 0x00FF0000) >> 16;
+    p[offset*BYTES_PER_SECTOR + freeEntry*BYTES_PER_DIR_ENTRY + 31] = (size & 0xFF000000) >> 24;
+
 }
 
 void copyToDisk(char* p, char* localFile_p, char* fileName, int size, int offset)
 {
+    printf("size is %d\n", size);
     int bytesToCopy = size;
 
     int freeSector = getFreeSector(p);
+    printf("first free sector is %d\n", freeSector);
     if(freeSector == -1)
     {
         printf("Error: No free sectors remain\n");
@@ -357,28 +365,18 @@ void copyToDisk(char* p, char* localFile_p, char* fileName, int size, int offset
 
     for(int j = 0; j <= size / BYTES_PER_SECTOR; j++)
     {
-        printf("bytesToCopy is %d\n", bytesToCopy);
-        int logicalSector = freeSector;
+        printf("new sector - bytesToCopy is %d\n", bytesToCopy);
         for(int i = 0; i < BYTES_PER_SECTOR; i++)
         {
             if (bytesToCopy > 0)
             {
-                printf("Copying %d into position %d\n", localFile_p[size - bytesToCopy], logicalToPhysicalSector(logicalSector)* BYTES_PER_SECTOR + i);
-                p[logicalToPhysicalSector(logicalSector)* BYTES_PER_SECTOR + i] = localFile_p[size - bytesToCopy];
+                p[logicalToPhysicalSector(freeSector) * BYTES_PER_SECTOR + i] = localFile_p[size - bytesToCopy];
                 bytesToCopy--;
             }
         }
-        int nextLogicalSector = getFreeSector(p);
-        writeToFat(p, logicalSector, nextLogicalSector);
+        writeToFat(p, freeSector, 0xFFF);
+        int nextSector = getFreeSector(p);
+        writeToFat(p, freeSector, nextSector);
+        freeSector = nextSector;
     }
-
-//    memcpy(&firstLogicalCluster, (p + dirOffset*BYTES_PER_SECTOR + dirEntry*BYTES_PER_DIR_ENTRY + 26), 2);
-//
-//    int physicalSectorNumber = 33 + firstLogicalCluster - 2;
-//
-//    p[logicalToPhysicalSector(freeSector) * BYTES_PER_SECTOR] = 'h';
-//    p[logicalToPhysicalSector(freeSector) * BYTES_PER_SECTOR + 1] = 'e';
-//    p[logicalToPhysicalSector(freeSector) * BYTES_PER_SECTOR + 2] = 'l';
-//    p[logicalToPhysicalSector(freeSector) * BYTES_PER_SECTOR + 3] = 'l';
-//    p[logicalToPhysicalSector(freeSector) * BYTES_PER_SECTOR + 4] = '\0';
 }

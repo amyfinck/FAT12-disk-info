@@ -21,7 +21,7 @@
 
 int getDiskSize(char* p);
 int getFatEntry(char* p, int position);
-void writeToFat(char* p, uint16_t logicalSector, uint16_t nextLogicalSector);
+void writeToFat(char *p, int index, int value);
 int getFreeSectorCount(char* p);
 int getFilesOnDisk(char* p, int offset);
 void printCreationDateTime(int creationDate, int creationTime);

@@ -18,57 +18,64 @@ int main(int argc, char* argv[])
         exit(1);
     }
 
-    int file_descriptor;
-    struct stat statbuf;
-    file_descriptor = open(argv[1], O_RDWR);
-    fstat(file_descriptor, &statbuf);
+    int fileDesc_ima;
+    struct stat statBuf_ima;
+    fileDesc_ima = open(argv[1], O_RDWR);
+    fstat(fileDesc_ima, &statBuf_ima);
 
     // p points to starting position of mapped memory
-    char * p = mmap(NULL, statbuf.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, file_descriptor, 0);
+    char * p = mmap(NULL, statBuf_ima.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, fileDesc_ima, 0);
     if (p == MAP_FAILED)
     {
         printf("Error: failed to map memory\n");
-        munmap(p, statbuf.st_size);
+        munmap(p, statBuf_ima.st_size);
         exit(1);
     }
 
     //------------------------
 
-    int fileDescriptor = open(argv[1], O_RDWR);
-    struct stat statbuf2;
-    if (fileDescriptor == -1)
+    int fileDesc_file = open(argv[2], O_RDWR);
+    struct stat statBuf_file;
+    if (fileDesc_file == -1)
     {
         printf("Error: file not found in current directory\n");
-        munmap(p, statbuf.st_size);
+        munmap(p, statBuf_file.st_size);
+        close(fileDesc_file);
         exit(1);
     }
-    fstat(fileDescriptor, &statbuf);
+    fstat(fileDesc_file, &statBuf_file);
 
     // p points to starting position of mapped memory
-    char * localFile_p = mmap(NULL, statbuf2.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, fileDescriptor, 0);
+    char * localFile_p = mmap(NULL, statBuf_file.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, fileDesc_file, 0);
     if (localFile_p == MAP_FAILED)
     {
-        printf("Error: failed to map memory\n");
-        munmap(p, statbuf.st_size);
-        munmap(localFile_p, statbuf2.st_size);
+        printf("Error: failed to map memory 2\n");
+        munmap(p, statBuf_file.st_size);
+        munmap(localFile_p, statBuf_file.st_size);
+        close(fileDesc_file);
         exit(1);
     }
 
     int freeSectors = getFreeSectorCount(p);
 
-    if(statbuf.st_size > freeSectors * BYTES_PER_SECTOR)
+    printf("statbuf2 is size %d and we have %d left\n", statBuf_file.st_size, freeSectors * BYTES_PER_SECTOR);
+
+    if(statBuf_file.st_size > freeSectors * BYTES_PER_SECTOR)
     {
         printf("Error: input file is too large\n");
-        munmap(p, statbuf.st_size);
-        munmap(localFile_p, statbuf2.st_size);
+        munmap(p, statBuf_file.st_size);
+        munmap(localFile_p, statBuf_file.st_size);
+        close(fileDesc_file);
         exit(1);
     }
+    // TODO segfualt when file not found
 
-    copyToDisk(p, localFile_p, argv[2], statbuf2.st_size, ROOT_OFFSET);
+    copyToDisk(p, localFile_p, argv[2], statBuf_file.st_size, ROOT_OFFSET);
 
-    munmap(p, statbuf.st_size);
-    munmap(localFile_p, statbuf2.st_size);
+    munmap(p, statBuf_ima.st_size);
+    munmap(localFile_p, statBuf_file.st_size);
 
-    close(file_descriptor);
+    close(fileDesc_ima);
+    close(fileDesc_file);
     return 0;
 }
