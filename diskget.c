@@ -28,20 +28,21 @@ void copyFileFromRoot(char* p, char* fileName)
     if(lretval == -1) {
         printf("error: lseek failed\n");
         close(filedescriptor);
-        exit(1);
+        return;
     }
 
     ssize_t wretval = write(filedescriptor, "", 1);
     if(wretval == -1){
         printf("error: write failed\n");
         close(filedescriptor);
-        exit(1);
+        return;
     }
 
     char* fileCopy_p = mmap(NULL, fileSize, PROT_WRITE, MAP_SHARED, filedescriptor, 0);
     if (fileCopy_p == MAP_FAILED) {
         printf("Error: failed to map memory\n");
-        exit(1);
+        // TODO proper error handling
+        return;
     }
 
     // copy it from the root to the current directory
@@ -74,7 +75,7 @@ int main(int argc, char* argv[])
     char * p = mmap(NULL, statbuf.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, file_descriptor, 0);
     if (p == MAP_FAILED)
     {
-        printf("Error: failed to map memory HERE\n");
+        printf("Error: failed to map memory\n");
         exit(1);
     }
 

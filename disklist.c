@@ -8,14 +8,14 @@ void printDirectory(char* p, int offset, char* dirName)
 {
     // TODO - refactor so date, time, size only accessed once for files and subdirs
 
-    int subdirOffsets[16] = {0};
-    char subdirNames[16][8];
+    int subdirOffsets[14*16] = {0};
+    char subdirNames[14*16][8];
 
     printf("%s\n", dirName);
     printf("==================\n");
 
     int byteOffset = offset * BYTES_PER_SECTOR;
-    for(int i = 0; i < 16 * BYTES_PER_DIR_ENTRY; i += BYTES_PER_DIR_ENTRY)
+    for(int i = 0; i < 14 * 16 * BYTES_PER_DIR_ENTRY; i += BYTES_PER_DIR_ENTRY)
     {
         // if this entry is not empty
         if((p + byteOffset + i)[0] != 0x00)
@@ -105,7 +105,7 @@ void printDirectory(char* p, int offset, char* dirName)
             }
         }
     }
-    for(int i = 0; i < 16; i++)
+    for(int i = 0; i < 14 * 16; i++)
     {
         if(subdirOffsets[i] == 0) break;
         printDirectory(p, subdirOffsets[i], subdirNames[i]);

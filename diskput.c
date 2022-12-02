@@ -2,32 +2,7 @@
 
 void addFileToDirectory(char* p, char* fileName, int offset)
 {
-    int fileDescriptor = open(fileName, O_RDWR);
-    struct stat statbuf;
-    if (fileDescriptor == -1)
-    {
-        printf("Error: file not found in current directory\n");
-        exit(1);
-    }
-    fstat(fileDescriptor, &statbuf);
 
-    // p points to starting position of mapped memory
-    char * localFile_p = mmap(NULL, statbuf.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, fileDescriptor, 0);
-    if (localFile_p == MAP_FAILED)
-    {
-        printf("Error: failed to map memory\n");
-        exit(1);
-    }
-
-    int freeSectors = getFreeSectorCount(p);
-
-    if(statbuf.st_size > freeSectors * BYTES_PER_SECTOR)
-    {
-        printf("Error: input file is too large\n");
-        exit(1);
-    }
-
-    copyToDisk(p, localFile_p, fileName, statbuf.st_size, offset);
 }
 
 int main(int argc, char* argv[])
@@ -53,14 +28,47 @@ int main(int argc, char* argv[])
     if (p == MAP_FAILED)
     {
         printf("Error: failed to map memory\n");
+        munmap(p, statbuf.st_size);
         exit(1);
     }
 
-    addFileToDirectory(p, argv[2], ROOT_OFFSET);
+    //------------------------
 
-    // unmap region
+    int fileDescriptor = open(argv[1], O_RDWR);
+    struct stat statbuf2;
+    if (fileDescriptor == -1)
+    {
+        printf("Error: file not found in current directory\n");
+        munmap(p, statbuf.st_size);
+        exit(1);
+    }
+    fstat(fileDescriptor, &statbuf);
+
+    // p points to starting position of mapped memory
+    char * localFile_p = mmap(NULL, statbuf2.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, fileDescriptor, 0);
+    if (localFile_p == MAP_FAILED)
+    {
+        printf("Error: failed to map memory\n");
+        munmap(p, statbuf.st_size);
+        munmap(localFile_p, statbuf2.st_size);
+        exit(1);
+    }
+
+    int freeSectors = getFreeSectorCount(p);
+
+    if(statbuf.st_size > freeSectors * BYTES_PER_SECTOR)
+    {
+        printf("Error: input file is too large\n");
+        munmap(p, statbuf.st_size);
+        munmap(localFile_p, statbuf2.st_size);
+        exit(1);
+    }
+
+    copyToDisk(p, localFile_p, argv[2], statbuf2.st_size, ROOT_OFFSET);
+
     munmap(p, statbuf.st_size);
-    close(file_descriptor);
+    munmap(localFile_p, statbuf2.st_size);
 
+    close(file_descriptor);
     return 0;
 }

@@ -17,4 +17,6 @@ debug:
 
 clean:
 	$(RM) diskinfo
-	$(RMD) diskinfo.dSYM
+	$(RM) disklist
+	$(RM) diskget
+	$(RM) diskput

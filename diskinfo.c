@@ -77,6 +77,7 @@ int main(int argc, char* argv[])
     {
         printf("error - malloc failed\n");
         close(file_descriptor);
+        munmap(p, statbuf.st_size);
         exit(1);
     }
 

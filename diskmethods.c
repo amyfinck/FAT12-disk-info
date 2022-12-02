@@ -7,7 +7,8 @@ int getDiskSize(char* p)
     return total_sector_count * BYTES_PER_SECTOR;
 }
 
-// gets the fat table entry at position, starting at 0 for the first entry.
+// gets the fat table entry at position, starting at 3 for first entry
+// TODO - change position to logical sector for consistency
 int getFatEntry(char* p, int position)
 {
     // skip boot sector
@@ -43,7 +44,7 @@ int getFatEntry(char* p, int position)
     return fatEntry;
 }
 
-void writeToFat(char* p, int logicalSector, int nextLogicalSector)
+void writeToFat(char* p, uint16_t logicalSector, uint16_t nextLogicalSector)
 {
     // skip boot sector
     int fatOffset = BYTES_PER_SECTOR;
@@ -51,11 +52,13 @@ void writeToFat(char* p, int logicalSector, int nextLogicalSector)
 
     if(logicalSector % 2 == 0)
     {
-        // TODO
+        p[(3 * logicalSector)/2 + 1] |= (nextLogicalSector & 0x0F00) >> 8;
+        p[(3 * logicalSector)/2] |= (nextLogicalSector & 0x00FF);
     }
     else
     {
-        // TODO
+        p[(3 * logicalSector)/2] |= ((nextLogicalSector & 0x0FF0) >> 4 );
+        p[(3 * logicalSector)/2 + 1] |=((nextLogicalSector & 0x000F) << 4);
     }
 }
 
@@ -83,7 +86,7 @@ int getFilesOnDisk(char* p, int offset)
 {
     int fileCount = 0;
     int byteOffset = offset * BYTES_PER_SECTOR;
-    for(int i = 0; i < 16 * BYTES_PER_DIR_ENTRY; i += BYTES_PER_DIR_ENTRY)
+    for(int i = 0; i < 14 * 16 * BYTES_PER_DIR_ENTRY; i += BYTES_PER_DIR_ENTRY)
     {
         // if this entry is not empty
         if((p + byteOffset + i)[0] != 0x00)
@@ -197,8 +200,8 @@ int getFileDirEntry(char* p, int offset, char* fileName)
 {
     int byteOffset = offset * BYTES_PER_SECTOR;
 
-    // for each entry in the directory
-    for(int i = 0; i < 16 * BYTES_PER_DIR_ENTRY; i += BYTES_PER_DIR_ENTRY)
+    // for each entry in the directory - there are 14 sectors in root directory, each with 16 entries
+    for(int i = 0; i < 14 * 16 * BYTES_PER_SECTOR; i += BYTES_PER_DIR_ENTRY)
     {
         // if this entry is not empty
         if((p + byteOffset + i)[0] != 0x00)
@@ -241,7 +244,7 @@ int getFreeDirEntry(char* p, int offset)
     int byteOffset = offset * BYTES_PER_SECTOR;
 
     // for each entry in the directory
-    for(int i = 0; i < 16 * BYTES_PER_DIR_ENTRY; i += BYTES_PER_DIR_ENTRY)
+    for(int i = 0; i < 14*16*BYTES_PER_DIR_ENTRY; i += BYTES_PER_DIR_ENTRY)
     {
         // if this entry is not empty
         if((p + byteOffset + i)[0] == 0x00)
@@ -354,11 +357,13 @@ void copyToDisk(char* p, char* localFile_p, char* fileName, int size, int offset
 
     for(int j = 0; j <= size / BYTES_PER_SECTOR; j++)
     {
+        printf("bytesToCopy is %d\n", bytesToCopy);
         int logicalSector = freeSector;
         for(int i = 0; i < BYTES_PER_SECTOR; i++)
         {
             if (bytesToCopy > 0)
             {
+                printf("Copying %d into position %d\n", localFile_p[size - bytesToCopy], logicalToPhysicalSector(logicalSector)* BYTES_PER_SECTOR + i);
                 p[logicalToPhysicalSector(logicalSector)* BYTES_PER_SECTOR + i] = localFile_p[size - bytesToCopy];
                 bytesToCopy--;
             }
@@ -367,15 +372,13 @@ void copyToDisk(char* p, char* localFile_p, char* fileName, int size, int offset
         writeToFat(p, logicalSector, nextLogicalSector);
     }
 
-
-
 //    memcpy(&firstLogicalCluster, (p + dirOffset*BYTES_PER_SECTOR + dirEntry*BYTES_PER_DIR_ENTRY + 26), 2);
 //
 //    int physicalSectorNumber = 33 + firstLogicalCluster - 2;
-
-    p[logicalToPhysicalSector(freeSector) * BYTES_PER_SECTOR] = 'h';
-    p[logicalToPhysicalSector(freeSector) * BYTES_PER_SECTOR + 1] = 'e';
-    p[logicalToPhysicalSector(freeSector) * BYTES_PER_SECTOR + 2] = 'l';
-    p[logicalToPhysicalSector(freeSector) * BYTES_PER_SECTOR + 3] = 'l';
-    p[logicalToPhysicalSector(freeSector) * BYTES_PER_SECTOR + 4] = '\0';
+//
+//    p[logicalToPhysicalSector(freeSector) * BYTES_PER_SECTOR] = 'h';
+//    p[logicalToPhysicalSector(freeSector) * BYTES_PER_SECTOR + 1] = 'e';
+//    p[logicalToPhysicalSector(freeSector) * BYTES_PER_SECTOR + 2] = 'l';
+//    p[logicalToPhysicalSector(freeSector) * BYTES_PER_SECTOR + 3] = 'l';
+//    p[logicalToPhysicalSector(freeSector) * BYTES_PER_SECTOR + 4] = '\0';
 }
