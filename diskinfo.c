@@ -58,6 +58,12 @@ int main(int argc, char* argv[])
     struct stat statbuf;
 
     file_descriptor = open(argv[1], O_RDWR);
+    if(file_descriptor == -1)
+    {
+        close(file_descriptor);
+        printf("Could not locate image in current directory\n");
+        exit(1);
+    }
 
     // fstat gets the file status, and puts all the relevant information in sb
     fstat(file_descriptor, &statbuf);

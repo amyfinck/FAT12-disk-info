@@ -69,6 +69,12 @@ int main(int argc, char* argv[])
     int file_descriptor;
     struct stat statbuf;
     file_descriptor = open(argv[1], O_RDWR);
+    if(file_descriptor == -1)
+    {
+        close(file_descriptor);
+        printf("Could not locate image in current directory\n");
+        exit(1);
+    }
     fstat(file_descriptor, &statbuf);
 
     // p points to starting position of mapped memory

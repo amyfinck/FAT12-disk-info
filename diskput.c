@@ -21,6 +21,12 @@ int main(int argc, char* argv[])
     int fileDesc_ima;
     struct stat statBuf_ima;
     fileDesc_ima = open(argv[1], O_RDWR);
+    if(fileDesc_ima == -1)
+    {
+        close(fileDesc_ima);
+        printf("Could not locate image in current directory\n");
+        exit(1);
+    }
     fstat(fileDesc_ima, &statBuf_ima);
 
     // p points to starting position of mapped memory
@@ -28,6 +34,7 @@ int main(int argc, char* argv[])
     if (p == MAP_FAILED)
     {
         printf("Error: failed to map memory\n");
+        close(fileDesc_ima);
         munmap(p, statBuf_ima.st_size);
         exit(1);
     }
@@ -40,6 +47,7 @@ int main(int argc, char* argv[])
     {
         printf("Error: file not found in current directory\n");
         munmap(p, statBuf_file.st_size);
+        close(fileDesc_ima);
         close(fileDesc_file);
         exit(1);
     }
@@ -52,23 +60,22 @@ int main(int argc, char* argv[])
         printf("Error: failed to map memory 2\n");
         munmap(p, statBuf_file.st_size);
         munmap(localFile_p, statBuf_file.st_size);
+        close(fileDesc_ima);
         close(fileDesc_file);
         exit(1);
     }
 
     int freeSectors = getFreeSectorCount(p);
 
-    printf("statbuf2 is size %d and we have %d left\n", statBuf_file.st_size, freeSectors * BYTES_PER_SECTOR);
-
     if(statBuf_file.st_size > freeSectors * BYTES_PER_SECTOR)
     {
         printf("Error: input file is too large\n");
         munmap(p, statBuf_file.st_size);
         munmap(localFile_p, statBuf_file.st_size);
+        close(fileDesc_ima);
         close(fileDesc_file);
         exit(1);
     }
-    // TODO segfualt when file not found
 
     copyToDisk(p, localFile_p, argv[2], statBuf_file.st_size, ROOT_OFFSET);
 

@@ -4,43 +4,42 @@
 static char* os_name;
 static char* disk_label;
 
+
 void printDirectory(char* p, int offset, char* dirName)
 {
-    // TODO - refactor so date, time, size only accessed once for files and subdirs
-
     int subdirOffsets[14*16] = {0};
+
     char subdirNames[14*16][8];
+
+    char* temp_ptr = p;
+    temp_ptr += offset * BYTES_PER_SECTOR;
 
     printf("%s\n", dirName);
     printf("==================\n");
 
-    int byteOffset = offset * BYTES_PER_SECTOR;
-    for(int i = 0; i < 14 * 16 * BYTES_PER_DIR_ENTRY; i += BYTES_PER_DIR_ENTRY)
+    int i = 0;
+    while ((i < 16*14) && (temp_ptr[0] != 0x00))
     {
         // if this entry is not empty
-        if((p + byteOffset + i)[0] != 0x00)
+        if(temp_ptr[0] != 0x00)
         {
-            // attributes offset is 11
-            uint16_t attributes = 0;
-            memcpy(&attributes, (p + byteOffset + i + 11), 1);
-
             // check that it isn't a volume label or a subdirectory, then it's a file
-            if( ((attributes & 0x08) == 0) && ((attributes & 0x10) == 0))
+            if( ((temp_ptr[11] & 0x08) == 0) && ((temp_ptr[11] & 0x10) == 0))
             {
                 printf("F ");
 
                 int fileSize = 0;
-                memcpy(&fileSize, (p + byteOffset + i + 28), 4);
+                memcpy(&fileSize, (temp_ptr + 28), 4);
                 printf("%10d ", fileSize);
 
                 char* fullFileName = malloc(sizeof(char) * 13);
                 char* fileName = malloc(sizeof(char) * 8);
                 char* fileExt = malloc(sizeof(char) * 3);
-                strncpy(fileName, (p + byteOffset + i + 0), 8);
+                strncpy(fileName, (temp_ptr + 0), 8);
                 for(int j = 0; j < 8; j++) {
                     if(fileName[j] == ' ') fileName[j] = '\0';
                 }
-                strncpy(fileExt, (p + byteOffset + i + 8), 3);
+                strncpy(fileExt, (temp_ptr + 8), 3);
                 for(int k = 0; k < 3; k++) {
                     if(fileExt[k] == ' ') fileExt[k] = '\0';
                 }
@@ -51,26 +50,26 @@ void printDirectory(char* p, int offset, char* dirName)
                 free(fullFileName);
 
                 int firstLogicalSector;
-                memcpy(&firstLogicalSector, (p + byteOffset + i + 26), 2);
+                memcpy(&firstLogicalSector, (temp_ptr + 26), 2);
                 printf("%5d   ", firstLogicalSector);
                 //printf("1 sector location - %d\n", byteOffset + i + 26, firstLogicalSector);
 
                 uint16_t creationDate = 0;
-                memcpy(&creationDate, (p + byteOffset + i + 16), 2);
+                memcpy(&creationDate, (temp_ptr + 16), 2);
                 uint16_t creationTime = 0;
-                memcpy(&creationTime, (p + byteOffset + i + 14), 2);
+                memcpy(&creationTime, (temp_ptr + 14), 2);
                 printCreationDateTime(creationDate, creationTime);
                 printf("\n");
             }
 
             // if it is a subdirectory
-            if((attributes & 0x10) != 0)
+            if((temp_ptr[11] & 0x10) != 0)
             {
                 int dirSize = 0;
-                memcpy(&dirSize, (p + byteOffset + i + 28), 4);
+                memcpy(&dirSize, (temp_ptr + 28), 4);
 
                 char* subdirName = malloc(sizeof(char) * 8);
-                strncpy(subdirName, (p + byteOffset + i + 0), 8);
+                strncpy(subdirName, (temp_ptr + 0), 8);
                 for(int j = 0; j < 8; j++) {
                     if(subdirName[j] == ' ') subdirName[j] = '\0';
                 }
@@ -83,13 +82,14 @@ void printDirectory(char* p, int offset, char* dirName)
 
                     // if this is a subdirectory, find where it starts (first logical cluster field)
                     uint16_t firstLogicalCluster = 0;
-                    memcpy(&firstLogicalCluster, (p + byteOffset + i + 26), 2);
+                    memcpy(&firstLogicalCluster, (temp_ptr + 26), 2);
 
                     // store to call recursively at end of function
                     for(int j = 0; j < 16; j++)
                     {
                         if(subdirOffsets[j] == 0)
                         {
+                            //printf("adding %d\n\n", 33 + firstLogicalCluster - 2);
                             subdirOffsets[j] = 33 + firstLogicalCluster - 2;
                             for(int k = 0; k < 8; k++)
                             {
@@ -101,18 +101,21 @@ void printDirectory(char* p, int offset, char* dirName)
 
                     // TODO - Where is this located for subdirectories? These bits appear to all be 0.
                     uint16_t creationDate = 0;
-                    memcpy(&creationDate, (p + byteOffset + i + 16), 2);
+                    memcpy(&creationDate, (temp_ptr + 16), 2);
                     uint16_t creationTime = 0;
-                    memcpy(&creationTime, (p + byteOffset + i + 14), 2);
+                    memcpy(&creationTime, (temp_ptr + 14), 2);
                     printCreationDateTime(creationDate, creationTime);
                     printf("\n");
                 }
             }
         }
+        temp_ptr += 32;
+        i++;
     }
     for(int i = 0; i < 14 * 16; i++)
     {
-        if(subdirOffsets[i] == 0) break;
+        if(subdirOffsets[i] <= 0) break;
+        //printf("%s - %d\n", subdirNames[i], subdirOffsets[i]);
         printDirectory(p, subdirOffsets[i], subdirNames[i]);
     }
 }
@@ -134,7 +137,12 @@ int main(int argc, char* argv[])
     struct stat statbuf;
 
     file_descriptor = open(argv[1], O_RDWR);
-    // TODO - check on fail to open file
+    if(file_descriptor == -1)
+    {
+        close(file_descriptor);
+        printf("Could not locate image in current directory\n");
+        exit(1);
+    }
 
     // fstat gets the file status, and puts all the relevant information in sb
     fstat(file_descriptor, &statbuf);
