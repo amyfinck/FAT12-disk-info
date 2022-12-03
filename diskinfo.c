@@ -95,6 +95,7 @@ int main(int argc, char* argv[])
     printf("\n");
     printf("==============\n");
 
+
     printf("The number of files in the disk: %d\n\n", getFilesOnDisk(p, ROOT_OFFSET));
     printf("Number of FAT copies: %d\n", fat_count);
     printf("Sectors per FAT: %d\n", sectors_per_fat);

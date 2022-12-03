@@ -50,6 +50,11 @@ void printDirectory(char* p, int offset, char* dirName)
                 free(fileExt);
                 free(fullFileName);
 
+                int firstLogicalSector;
+                memcpy(&firstLogicalSector, (p + byteOffset + i + 26), 2);
+                printf("%5d   ", firstLogicalSector);
+                //printf("1 sector location - %d\n", byteOffset + i + 26, firstLogicalSector);
+
                 uint16_t creationDate = 0;
                 memcpy(&creationDate, (p + byteOffset + i + 16), 2);
                 uint16_t creationTime = 0;

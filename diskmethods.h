@@ -31,7 +31,9 @@ void copyFileToLocalDir(char* p, char* fileCopy_p, int fileSize, int dirOffset, 
 int getFileSize(char* p, int offset, int dirEntryNum);
 int logicalToPhysicalSector(int logicalSector);
 void addFileToDirectory(char* p, char* fileName, int offset);
-void addMetadataToDir(char* p, char* fileName, int size, int offset, uint8_t logicalSector);
+void addMetadataToDir(char* p, char* fileName, int size, int offset, uint16_t logicalSector);
 void copyToDisk(char* p, char* localFile_p, char* fileName, int size, int offset);
 
+
+int get_disk_file_num(char *ptr, int offset);
 #endif //CSC360_ASSIGNMENT3_DISKMETHODS_H

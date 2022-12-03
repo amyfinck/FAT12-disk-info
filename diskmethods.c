@@ -44,8 +44,9 @@ int getFatEntry(char* p, int position)
     return fatEntry;
 }
 
-void writeToFat(char *p, int logSect, int value) {
-
+void writeToFat(char *p, int logSect, int value)
+{
+    //printf("writing %d into %d\n", value, logSect);
     // Skip boot sector and go to first FAT
     p += BYTES_PER_SECTOR;
 
@@ -83,39 +84,46 @@ int getFreeSector(char* p)
 
 int getFilesOnDisk(char* p, int offset)
 {
+    // skip forward to the directory, offset is in sectors
+    char* temp_ptr = p;
+    temp_ptr += BYTES_PER_SECTOR * offset;
+
     int fileCount = 0;
-    int byteOffset = offset * BYTES_PER_SECTOR;
-    for(int i = 0; i < 14 * 16 * BYTES_PER_DIR_ENTRY; i += BYTES_PER_DIR_ENTRY)
+    int i = 0;
+
+    // 0x00 entry means all others are empty, 16*14 sectors total
+    while ((i < 16*14) && (temp_ptr[0] != 0x00))
     {
-        // if this entry is not empty
-        if((p + byteOffset + i)[0] != 0x00)
+        // not hidden, volume label, or subdirectory
+        if ((temp_ptr[11] & 0b00000010) == 0 && (temp_ptr[11] & 0b00001000) == 0 && (temp_ptr[11] & 0b00010000) == 0)
         {
-            // attributes offset is 11
-            uint16_t attributes = 0;
-            memcpy(&attributes, (p + byteOffset + i + 11), 1);
-
-            // check that it isn't a volume label or a subdirectory
-            if( ((attributes & 0x08) == 0) && ((attributes & 0x10) == 0))
+            //char* subdirName = malloc(sizeof(char) * 8);
+            //strncpy(subdirName, (temp_ptr + 0), 8);
+            fileCount++;
+            //free(subdirName);
+        }
+        else if( !((temp_ptr[11] & 0b00010000) == 0) )
+        {
+            // it is a subdirectory
+            char* subdirName = malloc(sizeof(char) * 8);
+            strncpy(subdirName, (temp_ptr + 0), 8);
+            if(subdirName[0] != '.')
             {
-                fileCount++;
-            }
-
-            // if it is a subdirectory
-            if((attributes & 0x10) != 0)
-            {
-                char* subdirName = malloc(sizeof(char) * 8);
-                strncpy(subdirName, (p + byteOffset + i + 0), 8);
-                if(subdirName[0] != '.')
+                uint16_t firstLogicalCluster;
+                memcpy(&firstLogicalCluster, (temp_ptr + 26), 2);
+                // recursively call this method for this subdirectory
+                if(firstLogicalCluster <= 2849)
                 {
-                    uint16_t firstLogicalCluster;
-                    memcpy(&firstLogicalCluster, (p + byteOffset + i + 26), 2);
-                    // recursively call this method for this subdirectory
                     fileCount += getFilesOnDisk(p, 33 + firstLogicalCluster - 2);
                 }
-                free(subdirName);
             }
+            free(subdirName);
         }
+        // skip to next dir entry
+        temp_ptr += 32;
+        i++;
     }
+
     return fileCount;
 }
 
@@ -268,13 +276,16 @@ void copyFileToLocalDir(char* p, char* fileCopy_p, int fileSize, int dirOffset, 
     uint16_t firstLogicalCluster;
     memcpy(&firstLogicalCluster, (p + dirOffset*BYTES_PER_SECTOR + dirEntry*BYTES_PER_DIR_ENTRY + 26), 2);
 
+    printf("my diroffset is %d\n", dirOffset);
+
+    printf(" 2 location %d value %d\n", dirOffset*BYTES_PER_SECTOR + dirEntry*BYTES_PER_DIR_ENTRY + 26, firstLogicalCluster);
+
     int physicalSectorNumber = 33 + firstLogicalCluster - 2;
 
     // TODO - getting stuck here
     int nextLogicalCluster = firstLogicalCluster;
     while((0x000 < nextLogicalCluster) && (nextLogicalCluster < 0xFF0))
     {
-        printf("a");
         for(int i = 0; i < BYTES_PER_SECTOR; i++)
         {
             if(bytesToCopy > 0)
@@ -283,7 +294,7 @@ void copyFileToLocalDir(char* p, char* fileCopy_p, int fileSize, int dirOffset, 
                 bytesToCopy--;
             }
         }
-        printf("%d ", nextLogicalCluster);
+        //printf("%d ", nextLogicalCluster);
         nextLogicalCluster = getFatEntry(p, nextLogicalCluster);
     }
 }
@@ -293,7 +304,7 @@ int logicalToPhysicalSector(int logicalSector)
     return 33 + logicalSector - 2;
 }
 
-void addMetadataToDir(char* p, char* fullFileName, int size, int offset, uint8_t logicalSector)
+void addMetadataToDir(char* p, char* fullFileName, int size, int offset, uint16_t logicalSector)
 {
     int freeEntry = getFreeDirEntry(p, offset);
     if(freeEntry == -1)
@@ -338,7 +349,9 @@ void addMetadataToDir(char* p, char* fullFileName, int size, int offset, uint8_t
     p[offset*BYTES_PER_SECTOR + freeEntry*BYTES_PER_DIR_ENTRY + 16] = ( (month & 0xF) << 5 | (day & 0x1F) );
     p[offset*BYTES_PER_SECTOR + freeEntry*BYTES_PER_DIR_ENTRY + 17] = (( (year-1980) & 0x7F) << 1 | (month & 0xF) >> 3);
 
-    p[offset*BYTES_PER_SECTOR + freeEntry*BYTES_PER_DIR_ENTRY + 26] = (char)logicalSector;
+    p[offset*BYTES_PER_SECTOR + freeEntry*BYTES_PER_DIR_ENTRY + 26] = (logicalSector & 0xFF);
+    p[offset*BYTES_PER_SECTOR + freeEntry*BYTES_PER_DIR_ENTRY + 27] = (logicalSector & 0xFF00) >> 8;
+
     printf("passing in size %d\n", size);
 
     p[offset*BYTES_PER_SECTOR + freeEntry*BYTES_PER_DIR_ENTRY + 28] = size & 0x000000FF;
@@ -354,6 +367,7 @@ void copyToDisk(char* p, char* localFile_p, char* fileName, int size, int offset
     int bytesToCopy = size;
 
     int freeSector = getFreeSector(p);
+    int prevSector = -1;
     printf("first free sector is %d\n", freeSector);
     if(freeSector == -1)
     {
@@ -361,22 +375,36 @@ void copyToDisk(char* p, char* localFile_p, char* fileName, int size, int offset
         exit(1);
     }
 
+    printf("passing in %d as free sector\n", freeSector);
     addMetadataToDir(p, fileName, size, offset, freeSector);
+    printf("%d is free sector now\n", freeSector);
 
     for(int j = 0; j <= size / BYTES_PER_SECTOR; j++)
     {
-        printf("new sector - bytesToCopy is %d\n", bytesToCopy);
+        printf("%d is my free sector\n", freeSector);
+        //printf("new sector - bytesToCopy is %d\n", bytesToCopy);
         for(int i = 0; i < BYTES_PER_SECTOR; i++)
         {
             if (bytesToCopy > 0)
             {
+                //printf("%5d\n", freeSector);
                 p[logicalToPhysicalSector(freeSector) * BYTES_PER_SECTOR + i] = localFile_p[size - bytesToCopy];
                 bytesToCopy--;
+            }
+            else
+            {
+                //printf("%5d doing nothing\n", freeSector);
             }
         }
         writeToFat(p, freeSector, 0xFFF);
         int nextSector = getFreeSector(p);
         writeToFat(p, freeSector, nextSector);
+        printf("%5d%5d - %d bytes left\n", freeSector, nextSector, bytesToCopy);
+        prevSector = freeSector;
         freeSector = nextSector;
     }
+    printf("%5d%5d - %d bytes left\n", prevSector, 0xFFF, bytesToCopy);
+    if(prevSector != -1) writeToFat(p, prevSector, 0xFFF);
+    writeToFat(p, freeSector, 0x000);
+    printf("%5d%5d - %d bytes left\n", freeSector, 0, bytesToCopy);
 }
