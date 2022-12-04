@@ -1,8 +1,63 @@
 #include "diskmethods.h"
 
-void addFileToDirectory(char* p, char* fileName, int offset)
+char* getFileName(char* fullFileName)
 {
+    char* fileName = malloc(sizeof(char)*13);
+    const char s[2] = "/";
+    char* token = strtok(fullFileName, s);
 
+    strncpy(fileName, token, 13);
+    while(token != NULL)
+    {
+        fileName = token;
+        token = strtok(NULL, s);
+    }
+    return fileName;
+}
+
+char* getPathOnly(char* fullFileName, char* fileName)
+{
+    fullFileName += strlen(fullFileName) - strlen(fileName);
+
+    for(int i = 0; i < strlen(fileName); i++)
+    {
+        fullFileName[i] = '\0';
+    }
+    return fullFileName;
+}
+
+int moveThroughFilePath(char*p, char* fullFileName, char* fileName)
+{
+    char* dirName = malloc(sizeof(char)*13);
+    const char s[2] = "/";
+    char* token = strtok(fullFileName, s);
+
+    int offset = 19;
+    strncpy(dirName, token, 13);
+    while(token != NULL && strncmp(token, fileName, 13))
+    {
+        offset = isSubdirectory(p, token, offset);
+        dirName = token;
+        token = strtok(NULL, s);
+    }
+    return offset;
+}
+
+char* getSubdirectory(char* fullFileName)
+{
+    char* fileName = malloc(sizeof(char)*13);
+    char* dirName = malloc(sizeof(char)*13);
+    const char s[2] = "/";
+    char* token = strtok(fullFileName, s);
+
+    strncpy(fileName, token, 13);
+    while(token != NULL)
+    {
+        dirName = fileName;
+        fileName = token;
+        token = strtok(NULL, s);
+    }
+    return dirName;
 }
 
 int main(int argc, char* argv[])
@@ -39,14 +94,31 @@ int main(int argc, char* argv[])
         exit(1);
     }
 
-    //------------------------
+    char* fullFileName1 = malloc(sizeof(char)*100);
+    char* fullFileName2 = malloc(sizeof(char)*100);
+    char* fullFileName3 = malloc(sizeof(char)*100);
+    char* fileName = malloc(sizeof(char)*8);
 
-    int fileDesc_file = open(argv[2], O_RDWR);
+    strncpy(fullFileName1, argv[2], 100);
+    strncpy(fullFileName2, argv[2], 100);
+    strncpy(fullFileName3, argv[2], 100);
+
+    strncpy(fileName, getFileName(fullFileName1), 11);
+
+    int offset = moveThroughFilePath(p, fullFileName2, fileName);
+    if(offset == -1)
+    {
+        printf("Specified path could not be found on image\n");
+        close(fileDesc_ima);
+        munmap(p, statBuf_ima.st_size);
+        exit(1);
+    }
+
+    int fileDesc_file = open(fileName, O_RDWR);
     struct stat statBuf_file;
     if (fileDesc_file == -1)
     {
         printf("Error: file not found in current directory\n");
-        munmap(p, statBuf_file.st_size);
         close(fileDesc_ima);
         close(fileDesc_file);
         exit(1);
@@ -65,6 +137,17 @@ int main(int argc, char* argv[])
         exit(1);
     }
 
+    copyToDisk(p, localFile_p, fileName, statBuf_file.st_size, offset);
+
+    if(offset == 19)
+    {
+        printf("%s has been copied to root directory\n", fileName);
+    }
+    else
+    {
+        printf("%s has been copied to the specified directory\n", fileName);
+    }
+
     int freeSectors = getFreeSectorCount(p);
 
     if(statBuf_file.st_size > freeSectors * BYTES_PER_SECTOR)
@@ -76,8 +159,6 @@ int main(int argc, char* argv[])
         close(fileDesc_file);
         exit(1);
     }
-
-    copyToDisk(p, localFile_p, argv[2], statBuf_file.st_size, ROOT_OFFSET);
 
     munmap(p, statBuf_ima.st_size);
     munmap(localFile_p, statBuf_file.st_size);

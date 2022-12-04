@@ -51,8 +51,6 @@ void printDirectory(char* p, int offset, char* dirName)
 
                 int firstLogicalSector;
                 memcpy(&firstLogicalSector, (temp_ptr + 26), 2);
-                printf("%5d   ", firstLogicalSector);
-                //printf("1 sector location - %d\n", byteOffset + i + 26, firstLogicalSector);
 
                 uint16_t creationDate = 0;
                 memcpy(&creationDate, (temp_ptr + 16), 2);
@@ -112,6 +110,7 @@ void printDirectory(char* p, int offset, char* dirName)
         temp_ptr += 32;
         i++;
     }
+    printf("\n");
     for(int i = 0; i < 14 * 16; i++)
     {
         if(subdirOffsets[i] <= 0) break;
@@ -137,12 +136,7 @@ int main(int argc, char* argv[])
     struct stat statbuf;
 
     file_descriptor = open(argv[1], O_RDWR);
-    if(file_descriptor == -1)
-    {
-        close(file_descriptor);
-        printf("Could not locate image in current directory\n");
-        exit(1);
-    }
+
 
     // fstat gets the file status, and puts all the relevant information in sb
     fstat(file_descriptor, &statbuf);
