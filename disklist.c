@@ -62,7 +62,6 @@ void printDirectory(char* p, int offset, char* dirName)
                 int dirSize = 0;
                 memcpy(&dirSize, (temp_ptr + 28), 4);
 
-                //TODO
                 char* subdirName = malloc(sizeof(char) * 8);
                 strncpy(subdirName, (temp_ptr + 0), 8);
                 for(int j = 0; j < 8; j++) {
@@ -94,7 +93,6 @@ void printDirectory(char* p, int offset, char* dirName)
                         }
                     }
 
-                    // TODO - Where is this located for subdirectories? These bits appear to all be 0.
                     uint16_t creationDate = 0;
                     memcpy(&creationDate, (temp_ptr + 16), 2);
                     uint16_t creationTime = 0;
@@ -134,7 +132,12 @@ int main(int argc, char* argv[])
     struct stat statbuf;
 
     file_descriptor = open(argv[1], O_RDWR);
-
+    if(file_descriptor == -1)
+    {
+        close(file_descriptor);
+        printf("Could not locate image in current directory\n");
+        exit(1);
+    }
 
     // fstat gets the file status, and puts all the relevant information in sb
     fstat(file_descriptor, &statbuf);

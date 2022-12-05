@@ -72,7 +72,6 @@ int main(int argc, char* argv[])
     char * p = mmap(NULL, statbuf.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, file_descriptor, 0);
     if (p == MAP_FAILED)
     {
-        // TODO - NEED TO CHECK DISK EXISTS
         printf("Error: failed to map memory\n");
         close(file_descriptor);
         exit(1);

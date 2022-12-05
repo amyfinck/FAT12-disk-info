@@ -49,7 +49,6 @@ int isSubdirectory(char* p, char* dirName, int offset)
 
 
 // gets the fat table entry at position, starting at 3 for first entry
-// TODO - change position to logical sector for consistency
 int getFatEntry(char* p, int position)
 {
     // skip boot sector
@@ -377,7 +376,6 @@ void addMetadataToDir(char* p, char* fullFileName, int size, int offset, uint16_
     uint8_t hour = now->tm_hour;
     uint8_t minute = now->tm_min;
 
-    // TODO - do I need to do lastwritetime, ect
     p[offset*BYTES_PER_SECTOR + freeEntry*BYTES_PER_DIR_ENTRY + 14] = ((minute & 0x3F) << 5 | 0x00);
     p[offset*BYTES_PER_SECTOR + freeEntry*BYTES_PER_DIR_ENTRY + 15] = ((hour & 0x1F) << 3 | (minute & 0x3F) >> 3);
     p[offset*BYTES_PER_SECTOR + freeEntry*BYTES_PER_DIR_ENTRY + 16] = ( (month & 0xF) << 5 | (day & 0x1F) );

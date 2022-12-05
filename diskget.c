@@ -41,7 +41,6 @@ void copyFileFromRoot(char* p, char* fileName)
     char* fileCopy_p = mmap(NULL, fileSize, PROT_WRITE, MAP_SHARED, filedescriptor, 0);
     if (fileCopy_p == MAP_FAILED) {
         printf("Error: failed to map memory\n");
-        // TODO proper error handling
         return;
     }
 
