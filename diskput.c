@@ -1,6 +1,7 @@
 #include "diskmethods.h"
 
-char* getFileName(char* fullFileName)
+// extracts the file name from the fullFileName and copies it into fileNameRet
+void getFileName(char* fullFileName, char* fileNameRet)
 {
     char* fileName = malloc(sizeof(char)*13);
     const char s[2] = "/";
@@ -12,7 +13,7 @@ char* getFileName(char* fullFileName)
         fileName = token;
         token = strtok(NULL, s);
     }
-    return fileName;
+    strncpy(fileNameRet, fileName, 13);
 }
 
 char* getPathOnly(char* fullFileName, char* fileName)
@@ -28,36 +29,16 @@ char* getPathOnly(char* fullFileName, char* fileName)
 
 int moveThroughFilePath(char*p, char* fullFileName, char* fileName)
 {
-    char* dirName = malloc(sizeof(char)*13);
     const char s[2] = "/";
     char* token = strtok(fullFileName, s);
 
     int offset = 19;
-    strncpy(dirName, token, 13);
-    while(token != NULL && strncmp(token, fileName, 13))
+    while(token != NULL && strncmp(token, fileName, 13) != 0)
     {
         offset = isSubdirectory(p, token, offset);
-        dirName = token;
         token = strtok(NULL, s);
     }
     return offset;
-}
-
-char* getSubdirectory(char* fullFileName)
-{
-    char* fileName = malloc(sizeof(char)*13);
-    char* dirName = malloc(sizeof(char)*13);
-    const char s[2] = "/";
-    char* token = strtok(fullFileName, s);
-
-    strncpy(fileName, token, 13);
-    while(token != NULL)
-    {
-        dirName = fileName;
-        fileName = token;
-        token = strtok(NULL, s);
-    }
-    return dirName;
 }
 
 int main(int argc, char* argv[])
@@ -103,7 +84,7 @@ int main(int argc, char* argv[])
     strncpy(fullFileName2, argv[2], 100);
     strncpy(fullFileName3, argv[2], 100);
 
-    strncpy(fileName, getFileName(fullFileName1), 11);
+    getFileName(fullFileName1, fileName);
 
     int offset = moveThroughFilePath(p, fullFileName2, fileName);
     if(offset == -1)
@@ -162,6 +143,11 @@ int main(int argc, char* argv[])
 
     munmap(p, statBuf_ima.st_size);
     munmap(localFile_p, statBuf_file.st_size);
+
+    free(fullFileName1);
+    free(fullFileName2);
+    free(fullFileName3);
+    free(fileName);
 
     close(fileDesc_ima);
     close(fileDesc_file);

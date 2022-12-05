@@ -138,10 +138,7 @@ int getFilesOnDisk(char* p, int offset)
         // not hidden, volume label, or subdirectory
         if ((temp_ptr[11] & 0b00000010) == 0 && (temp_ptr[11] & 0b00001000) == 0 && (temp_ptr[11] & 0b00010000) == 0)
         {
-            //char* subdirName = malloc(sizeof(char) * 8);
-            //strncpy(subdirName, (temp_ptr + 0), 8);
             fileCount++;
-            //free(subdirName);
         }
         else if( !((temp_ptr[11] & 0b00010000) == 0) )
         {

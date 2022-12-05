@@ -1,10 +1,6 @@
 #include "linkedlist.h"
 #include "diskmethods.h"
 
-static char* os_name;
-static char* disk_label;
-
-
 void printDirectory(char* p, int offset, char* dirName)
 {
     int subdirOffsets[14*16] = {0};
@@ -66,6 +62,7 @@ void printDirectory(char* p, int offset, char* dirName)
                 int dirSize = 0;
                 memcpy(&dirSize, (temp_ptr + 28), 4);
 
+                //TODO
                 char* subdirName = malloc(sizeof(char) * 8);
                 strncpy(subdirName, (temp_ptr + 0), 8);
                 for(int j = 0; j < 8; j++) {
@@ -105,6 +102,7 @@ void printDirectory(char* p, int offset, char* dirName)
                     printCreationDateTime(creationDate, creationTime);
                     printf("\n");
                 }
+                free(subdirName);
             }
         }
         temp_ptr += 32;
@@ -156,7 +154,5 @@ int main(int argc, char* argv[])
     munmap(p, statbuf.st_size); // the modifed the memory data would be mapped to the disk image
     close(file_descriptor);
 
-    free(os_name);
-    free(disk_label);
     return 0;
 }
