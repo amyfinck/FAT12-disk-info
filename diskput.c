@@ -16,17 +16,6 @@ void getFileName(char* fullFileName, char* fileNameRet)
     strncpy(fileNameRet, fileName, 13);
 }
 
-char* getPathOnly(char* fullFileName, char* fileName)
-{
-    fullFileName += strlen(fullFileName) - strlen(fileName);
-
-    for(int i = 0; i < strlen(fileName); i++)
-    {
-        fullFileName[i] = '\0';
-    }
-    return fullFileName;
-}
-
 int moveThroughFilePath(char*p, char* fullFileName, char* fileName)
 {
     const char s[2] = "/";
@@ -83,6 +72,12 @@ int main(int argc, char* argv[])
     strncpy(fullFileName1, argv[2], 100);
     strncpy(fullFileName2, argv[2], 100);
     strncpy(fullFileName3, argv[2], 100);
+
+    for(int i = 0; i < 100; i++)
+    {
+        fullFileName1[i] = toupper(fullFileName1[i]);
+        fullFileName2[i] = toupper(fullFileName2[i]);
+    }
 
     getFileName(fullFileName1, fileName);
 
